@@ -35,18 +35,24 @@ pipeline {
         }
 
         stage('Update Kubernetes Manifest') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'git-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
-                    sh """
-                    git -C ${MANIFEST_REPO} config user.email "jenkins@localhost"
-                    git -C ${MANIFEST_REPO} config user.name "Jenkins"
-                    git -C ${MANIFEST_REPO} add .
-                    git -C ${MANIFEST_REPO} commit -m 'Update image tag to ${BUILD_NUMBER}'
-                    git -C ${MANIFEST_REPO} push https://${GIT_USER}:${GIT_PASS}@github.com/roshanpatro4177/manifest-repo.git main
-                    """
-                }
-            }
-        }
+			steps {
+				withCredentials([usernamePassword(credentialsId: 'git-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+					sh """
+					if [ ! -d "${MANIFEST_REPO}/.git" ]; then
+						echo "Cloning the manifest repo..."
+						git clone https://${GIT_USER}:${GIT_PASS}@github.com/roshanpatro4177/manifest-repo.git ${MANIFEST_REPO}
+					fi
+
+					git -C ${MANIFEST_REPO} config user.email "jenkins@localhost"
+					git -C ${MANIFEST_REPO} config user.name "Jenkins"
+					git -C ${MANIFEST_REPO} add .
+					git -C ${MANIFEST_REPO} commit -m 'Update image tag to ${BUILD_NUMBER}'
+					git -C ${MANIFEST_REPO} push https://${GIT_USER}:${GIT_PASS}@github.com/roshanpatro4177/manifest-repo.git main
+					"""
+				}
+			}
+		}
+
 
         stage('Deploy to Kubernetes') {
             steps {
