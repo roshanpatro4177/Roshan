@@ -43,15 +43,28 @@ pipeline {
 						git clone https://${GIT_USER}:${GIT_PASS}@github.com/roshanpatro4177/manifest-repo.git ${MANIFEST_REPO}
 					fi
 
-					git -C ${MANIFEST_REPO} config user.email "jenkins@localhost"
-					git -C ${MANIFEST_REPO} config user.name "Jenkins"
-					git -C ${MANIFEST_REPO} add .
-					git -C ${MANIFEST_REPO} commit -m 'Update image tag to ${BUILD_NUMBER}'
-					git -C ${MANIFEST_REPO} push https://${GIT_USER}:${GIT_PASS}@github.com/roshanpatro4177/manifest-repo.git main
+					cd ${MANIFEST_REPO}  # Ensure we are inside the correct Git directory
+
+					git config user.email "jenkins@localhost"
+					git config user.name "Jenkins"
+
+					# Securely update remote URL to avoid exposing credentials in logs
+					git remote set-url origin https://${GIT_USER}:${GIT_PASS}@github.com/roshanpatro4177/manifest-repo.git
+
+					git add .
+					
+					# Check if there are changes before committing
+					if ! git diff --staged --quiet; then
+						git commit -m 'Update image tag to ${BUILD_NUMBER}'
+						git push origin main
+					else
+						echo "No changes to commit, skipping push."
+					fi
 					"""
 				}
 			}
 		}
+
 
 
         stage('Deploy to Kubernetes') {
