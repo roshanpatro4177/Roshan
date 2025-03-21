@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "your-docker-repo/your-app:${BUILD_NUMBER}"
-        MANIFEST_REPO = "/path/to/your-manifest-repo"
+        DOCKER_IMAGE = "roshanpatro4177/spring-boot-app:${BUILD_NUMBER}"
+        MANIFEST_REPO = "/home/ubuntu/manifest-repo/manifest-repo"
     }
 
     stages {
