@@ -69,7 +69,7 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh "microk8s.kubectl apply -f ${MANIFEST_REPO}/deployment.yaml"
+                sh "kubectl apply -f ${MANIFEST_REPO}/deployment.yaml"
             }
         }
     }
