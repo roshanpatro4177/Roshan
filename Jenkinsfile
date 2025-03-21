@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "roshanpatro4177/spring-boot-app:${BUILD_NUMBER}"
+        DOCKER_IMAGE = "roshanpatro/spring-boot-app:${BUILD_NUMBER}"
         MANIFEST_REPO = "/home/ubuntu/manifest-repo/manifest-repo"
     }
 
@@ -15,7 +15,9 @@ pipeline {
 
         stage('Build with Maven') {
             steps {
-                sh 'mvn clean package'
+                withMaven(maven: 'Maven-3.8.1') {
+                    sh 'mvn clean package'
+                }
             }
         }
 
@@ -27,27 +29,31 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                sh "docker login -u your-username -p your-password"
-                sh "docker push ${DOCKER_IMAGE}"
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin"
+                    sh "docker push ${DOCKER_IMAGE}"
+                }
             }
         }
 
         stage('Update Kubernetes Manifest') {
             steps {
-                script {
-                    sh "sed -i 's|image: .*|image: ${DOCKER_IMAGE}|' ${MANIFEST_REPO}/deployment.yaml"
-                    sh "git -C ${MANIFEST_REPO} add ."
-                    sh "git -C ${MANIFEST_REPO} commit -m 'Update image tag to ${BUILD_NUMBER}'"
-                    sh "git -C ${MANIFEST_REPO} push origin main"
+                withCredentials([usernamePassword(credentialsId: 'git-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
+                    sh """
+                    git -C ${MANIFEST_REPO} config user.email "jenkins@localhost"
+                    git -C ${MANIFEST_REPO} config user.name "Jenkins"
+                    git -C ${MANIFEST_REPO} add .
+                    git -C ${MANIFEST_REPO} commit -m 'Update image tag to ${BUILD_NUMBER}'
+                    git -C ${MANIFEST_REPO} push https://${GIT_USER}:${GIT_PASS}@github.com/roshanpatro4177/manifest-repo.git main
+                    """
                 }
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh "kubectl apply -f ${MANIFEST_REPO}/deployment.yaml"
+                sh "microk8s.kubectl apply -f ${MANIFEST_REPO}/deployment.yaml"
             }
         }
     }
 }
- 
