@@ -74,21 +74,21 @@ pipeline {
 					git config user.email "jenkins@localhost"
 					git config user.name "Jenkins"
 
-					# Fetch the latest changes from the remote and merge them
-					git pull origin main --rebase
-					
-					sed -i 's|image: roshanpatro/spring-boot-app:.*|image: ${env.DOCKER_IMAGE}|' deployment.yaml
-					git add deployment.yaml
-					
-					# Check if there are changes before committing
-					git diff --cached --exit-code || git commit -m 'Update image tag to ${env.DOCKER_IMAGE}'
+					# Pull latest changes and attempt to rebase
+					git pull origin main --rebase || (git rebase --abort && git pull --no-rebase)
 
-					# Push the changes after syncing with the remote branch
+					# Automatically resolve conflicts by keeping the latest version from remote
+					git checkout --theirs deployment.yaml || true
+					git add deployment.yaml
+
+					# Commit and push changes only if there is something new
+					git diff --cached --exit-code || git commit -m 'Update image tag to ${env.DOCKER_IMAGE}'
 					git push https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git main
 					"""
 				}
 			}
 		}
+
 
 
 
