@@ -8,12 +8,12 @@ public class DemoController {
 
     @GetMapping("/")
     public String home() {
-        return "Webhook is running!";
+        return "Webhook is running!!";
     }
 
     @GetMapping("/hello")
     public String helloWorld(){
-        return "Welcome Roshan";
+        return "Welcome Roshan Raj Patro";
     }
 
 }
