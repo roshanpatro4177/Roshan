@@ -21,25 +21,24 @@ pipeline {
         }
 
         stage('Get Latest Image Version') {
-			steps {
-				script {
-					def latestTag = sh(
-						script: '''
-						curl -s "https://hub.docker.com/v2/repositories/$REPO_NAME/tags?page_size=100" | \
-						/usr/bin/jq -r "[.results[].name | select(test(\"^[0-9]+$\"))] | max" || echo "0"
-						''',
-						returnStdout: true
-					).trim()
+            steps {
+                script {
+                    def latestTag = sh(
+                        script: '''
+                        curl -s "https://hub.docker.com/v2/repositories/${env.REPO_NAME}/tags?page_size=100" | \
+                        jq -r '[.results[].name | select(test("^[0-9]+$")) | tonumber] | max' || echo "0"
+                        ''',
+                        returnStdout: true
+                    ).trim()
 
-					echo "Latest found image tag: ${latestTag}"
+                    echo "Latest found image tag: ${latestTag}"
 
-					def nextVersion = latestTag.isNumber() ? (latestTag.toInteger() + 1) : 1
-					env.DOCKER_IMAGE = "${REPO_NAME}:${nextVersion}"
-					echo "Next image version: ${env.DOCKER_IMAGE}"
-				}
-			}
-		}
-
+                    def nextVersion = latestTag ==~ /\d+/ ? (latestTag.toInteger() + 1) : 1
+                    env.DOCKER_IMAGE = "${REPO_NAME}:${nextVersion}"
+                    echo "Next image version: ${env.DOCKER_IMAGE}"
+                }
+            }
+        }
 
         stage('Clone Repository') {
             steps {
@@ -88,7 +87,7 @@ pipeline {
                     git reset --hard origin/main
 
                     # Modify deployment.yaml with the new image tag
-                    sed -i "s|image: roshanpatro/spring-boot-app:.*|image: ${env.DOCKER_IMAGE}|" deployment.yaml
+                    sed -i "s|image: roshanpatro/spring-boot-app:[0-9]*|image: ${env.DOCKER_IMAGE}|" deployment.yaml
 
                     # Check if there are any changes before committing
                     if ! git diff --quiet deployment.yaml; then
@@ -102,5 +101,7 @@ pipeline {
                 }
             }
         }
+
+        
     }
 }
