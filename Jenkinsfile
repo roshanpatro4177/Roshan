@@ -25,11 +25,13 @@ pipeline {
                 script {
                     def latestTag = sh(
                         script: """
-                        curl -s https://hub.docker.com/v2/repositories/${REPO_NAME}/tags | \
-                        /usr/bin/jq -r '[.results[].name | select(test("^[0-9]+\$"))] | max' || echo "0"
+                        curl -s "https://hub.docker.com/v2/repositories/${REPO_NAME}/tags?page_size=100" | \
+                        /usr/bin/jq -r '[.results[].name | select(test("^[0-9]+$"))] | max' || echo "0"
                         """,
                         returnStdout: true
                     ).trim()
+
+                    echo "Latest found image tag: ${latestTag}"
 
                     def nextVersion = latestTag.isInteger() ? (latestTag.toInteger() + 1) : 1
                     env.DOCKER_IMAGE = "${REPO_NAME}:${nextVersion}"
@@ -53,6 +55,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh "docker build -t ${env.DOCKER_IMAGE} ."
+                echo "Docker image built: ${env.DOCKER_IMAGE}"
             }
         }
 
@@ -61,6 +64,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin"
                     sh "docker push ${env.DOCKER_IMAGE}"
+                    echo "Docker image pushed: ${env.DOCKER_IMAGE}"
                 }
             }
         }
