@@ -62,27 +62,29 @@ pipeline {
         }
 
         stage('Update Kubernetes Manifest') {
-			steps {
-				withCredentials([string(credentialsId: 'git-token', variable: 'GIT_TOKEN')]) {
-					sh """
-					if [ ! -d "${MANIFEST_REPO}/.git" ]; then
-						git clone https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git ${MANIFEST_REPO}
-					fi
+            steps {
+                withCredentials([string(credentialsId: 'git-token', variable: 'GIT_TOKEN')]) {
+                    sh """
+                    if [ ! -d "${MANIFEST_REPO}/.git" ]; then
+                        git clone https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git ${MANIFEST_REPO}
+                    fi
 
-					cd ${MANIFEST_REPO}
+                    cd ${MANIFEST_REPO}
+                    git config user.email "jenkins@localhost"
+                    git config user.name "Jenkins"
 
-					git config user.email "jenkins@localhost"
-					git config user.name "Jenkins"
+                    sed -i 's|image: roshanpatro/spring-boot-app:.*|image: ${env.DOCKER_IMAGE}|' deployment.yaml
+                    git add deployment.yaml
+                    
+                    # Check if there are changes before committing
+                    git diff --cached --exit-code || git commit -m 'Update image tag to ${env.DOCKER_IMAGE}'
 
-					sed -i 's|image: roshanpatro/spring-boot-app:.*|image: ${env.DOCKER_IMAGE}|' deployment.yaml
+                    git push https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git main
+                    """
+                }
+            }
+        }
 
-					git add deployment.yaml
-					git commit -m 'Update image tag to ${env.DOCKER_IMAGE}'
-					git push https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git main
-					"""
-				}
-			}
-		}
 
         stage('Deploy to Kubernetes') {
             steps {
