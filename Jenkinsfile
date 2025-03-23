@@ -7,10 +7,27 @@ pipeline {
     }
 
     stages {
+        stage('Install jq') {
+            steps {
+                sh '''
+                if ! command -v jq &> /dev/null
+                then
+                    echo "Installing jq..."
+                    apt-get update && apt-get install -y jq
+                fi
+                /usr/bin/jq --version
+                '''
+            }
+        }
+
         stage('Get Latest Image Version') {
             steps {
                 script {
-                    def latestTag = sh(script: "curl -s https://hub.docker.com/v2/repositories/${REPO_NAME}/tags | jq -r '.results | map(.name | tonumber?) | max'", returnStdout: true).trim()
+                    def latestTag = sh(
+                        script: "curl -s https://hub.docker.com/v2/repositories/${REPO_NAME}/tags | /usr/bin/jq -r '[.results[].name | select(tonumber?)] | max'",
+                        returnStdout: true
+                    ).trim()
+
                     def nextVersion = latestTag.isNumber() ? (latestTag.toInteger() + 1) : 1
                     env.DOCKER_IMAGE = "${REPO_NAME}:${nextVersion}"
                 }
