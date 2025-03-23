@@ -65,29 +65,30 @@ pipeline {
 			steps {
 				withCredentials([string(credentialsId: 'git-token', variable: 'GIT_TOKEN')]) {
 					sh """
-					if [ ! -d "${MANIFEST_REPO}/.git" ]; then
-						git clone https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git ${MANIFEST_REPO}
+					if [ ! -d "/home/ubuntu/manifest-repo/manifest-repo/.git" ]; then
+						git clone https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git /home/ubuntu/manifest-repo/manifest-repo
 					fi
 
-					cd ${MANIFEST_REPO}
+					cd /home/ubuntu/manifest-repo/manifest-repo
 
 					git config user.email "jenkins@localhost"
 					git config user.name "Jenkins"
 
-					# Pull latest changes and attempt to rebase
-					git pull origin main --rebase || (git rebase --abort && git pull --no-rebase)
+					# Force overwrite local files with the latest from GitHub
+					git fetch origin main
+					git reset --hard origin/main
 
-					# Automatically resolve conflicts by keeping the latest version from remote
-					git checkout --theirs deployment.yaml || true
+					# Modify deployment.yaml with the new image tag
+					sed -i "s|image: roshanpatro/spring-boot-app:.*|image: roshanpatro/spring-boot-app:10|" deployment.yaml
+
 					git add deployment.yaml
-
-					# Commit and push changes only if there is something new
-					git diff --cached --exit-code || git commit -m 'Update image tag to ${env.DOCKER_IMAGE}'
+					git commit -m 'Update image tag to roshanpatro/spring-boot-app:10'
 					git push https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git main
 					"""
 				}
 			}
 		}
+
 
 
 
