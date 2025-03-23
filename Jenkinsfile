@@ -24,12 +24,16 @@ pipeline {
             steps {
                 script {
                     def latestTag = sh(
-                        script: "curl -s https://hub.docker.com/v2/repositories/${REPO_NAME}/tags | /usr/bin/jq -r '[.results[].name | select(tonumber?)] | max'",
+                        script: """
+                        curl -s https://hub.docker.com/v2/repositories/${REPO_NAME}/tags | \
+                        /usr/bin/jq -r '[.results[].name | select(test("^[0-9]+\$"))] | max' || echo "0"
+                        """,
                         returnStdout: true
                     ).trim()
 
-                    def nextVersion = latestTag.isNumber() ? (latestTag.toInteger() + 1) : 1
+                    def nextVersion = latestTag.isInteger() ? (latestTag.toInteger() + 1) : 1
                     env.DOCKER_IMAGE = "${REPO_NAME}:${nextVersion}"
+                    echo "Next image version: ${env.DOCKER_IMAGE}"
                 }
             }
         }
@@ -62,43 +66,36 @@ pipeline {
         }
 
         stage('Update Kubernetes Manifest') {
-			steps {
-				withCredentials([string(credentialsId: 'git-token', variable: 'GIT_TOKEN')]) {
-					sh """
-					if [ ! -d "/home/ubuntu/manifest-repo/manifest-repo/.git" ]; then
-						git clone https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git /home/ubuntu/manifest-repo/manifest-repo
-					fi
+            steps {
+                withCredentials([string(credentialsId: 'git-token', variable: 'GIT_TOKEN')]) {
+                    sh """
+                    if [ ! -d "${MANIFEST_REPO}/.git" ]; then
+                        git clone https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git ${MANIFEST_REPO}
+                    fi
 
-					cd /home/ubuntu/manifest-repo/manifest-repo
+                    cd ${MANIFEST_REPO}
 
-					git config user.email "jenkins@localhost"
-					git config user.name "Jenkins"
+                    git config user.email "jenkins@localhost"
+                    git config user.name "Jenkins"
 
-					# Force overwrite local files with the latest from GitHub
-					git fetch origin main
-					git reset --hard origin/main
+                    # Force overwrite local files with the latest from GitHub
+                    git fetch origin main
+                    git reset --hard origin/main
 
-					# Modify deployment.yaml with the new image tag
-					sed -i "s|image: roshanpatro/spring-boot-app:.*|image: ${env.DOCKER_IMAGE}|" deployment.yaml
+                    # Modify deployment.yaml with the new image tag
+                    sed -i "s|image: roshanpatro/spring-boot-app:.*|image: ${env.DOCKER_IMAGE}|" deployment.yaml
 
-					# Check if there are any changes before committing
-					if ! git diff --quiet deployment.yaml; then
-						git add deployment.yaml
-						git commit -m 'Update image tag to ${env.DOCKER_IMAGE}'
-						git push https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git main
-					else
-						echo "No changes in deployment.yaml, skipping commit."
-					fi
-					"""
-				}
-			}
-		}
-
-
-
-
-
-
-        
+                    # Check if there are any changes before committing
+                    if ! git diff --quiet deployment.yaml; then
+                        git add deployment.yaml
+                        git commit -m 'Update image tag to ${env.DOCKER_IMAGE}'
+                        git push https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git main
+                    else
+                        echo "No changes in deployment.yaml, skipping commit."
+                    fi
+                    """
+                }
+            }
+        }
     }
 }
