@@ -24,10 +24,10 @@ pipeline {
 			steps {
 				script {
 					def latestTag = sh(
-						script: """
+						script: '''
 						curl -s "https://hub.docker.com/v2/repositories/$REPO_NAME/tags?page_size=100" | \
-						/usr/bin/jq -r '[.results[].name | select(test("^[0-9]+$"))] | max' || echo "0"
-						""",
+						/usr/bin/jq -r "[.results[].name | select(test(\"^[0-9]+$\"))] | max" || echo "0"
+						''',
 						returnStdout: true
 					).trim()
 
@@ -39,6 +39,7 @@ pipeline {
 				}
 			}
 		}
+
 
         stage('Clone Repository') {
             steps {
