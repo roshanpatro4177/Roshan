@@ -79,15 +79,21 @@ pipeline {
 					git reset --hard origin/main
 
 					# Modify deployment.yaml with the new image tag
-					sed -i "s|image: roshanpatro/spring-boot-app:.*|image: roshanpatro/spring-boot-app:10|" deployment.yaml
+					sed -i "s|image: roshanpatro/spring-boot-app:.*|image: ${env.DOCKER_IMAGE}|" deployment.yaml
 
-					git add deployment.yaml
-					git commit -m 'Update image tag to roshanpatro/spring-boot-app:10'
-					git push https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git main
+					# Check if there are any changes before committing
+					if ! git diff --quiet deployment.yaml; then
+						git add deployment.yaml
+						git commit -m 'Update image tag to ${env.DOCKER_IMAGE}'
+						git push https://${GIT_TOKEN}@github.com/roshanpatro4177/manifest-repo.git main
+					else
+						echo "No changes in deployment.yaml, skipping commit."
+					fi
 					"""
 				}
 			}
 		}
+
 
 
 
